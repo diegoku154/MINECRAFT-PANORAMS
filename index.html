@@ -6,8 +6,8 @@
       (a, [k, v]) => ((a[k] = v), a),
       {}
     );
-    const VALID_VERSIONS = '1.14,1.16,1.17,1.18,1.19,1.20,1.21,1.21.50,1.21.70,1.21.90';
-    const DEFAULT_VERSION = '1.21.90';
+    const VALID_VERSIONS = '1.14,1.16,1.17,1.18,1.19,1.20,1.21,1.21.50,1.21.70,1.21.90,1.21.111';
+    const DEFAULT_VERSION = '1.21.111';
     const version = VALID_VERSIONS.includes(data.v) ? data.v : DEFAULT_VERSION;
     const velocity = isNaN(Number(data.r)) ? 0.0004 : Number(data.r);
     window.addEventListener('DOMContentLoaded', () => {
