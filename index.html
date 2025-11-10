@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+  <script type="module">
+    import * as THREE from 'https://unpkg.com/three/build/three.module.js';
+    const data = [...new URLSearchParams(location.href.split('?')[1])].reduce(
+      (a, [k, v]) => ((a[k] = v), a),
+      {}
+    );
+    const VALID_VERSIONS = '1.14,1.16,1.17,1.18,1.19,1.20,1.21,1.21.50,1.21.70,1.21.90';
+    const DEFAULT_VERSION = '1.21.90';
+    const version = VALID_VERSIONS.includes(data.v) ? data.v : DEFAULT_VERSION;
+    const velocity = isNaN(Number(data.r)) ? 0.0004 : Number(data.r);
+    window.addEventListener('DOMContentLoaded', () => {
+      const scene = new THREE.Scene();
+      const camera = new THREE.PerspectiveCamera(
+        75,
+        window.innerWidth / window.innerHeight,
+        0.1,
+        1000
+      );
+      const renderer = new THREE.WebGLRenderer();
+      THREE.ColorManagement.legacyMode = false
+      renderer.outputEncoding = THREE.sRGBEncoding
+      renderer.toneMapping = THREE.ACESFilmicToneMapping
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.outputEncoding = THREE.sRGBEncoding;
+      renderer.toneMapping = THREE.LinearToneMapping;
+      renderer.gammaOutput = false;
+      window.addEventListener('resize', onWindowResize, false);
+
+      function onWindowResize() {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+
+        renderer.setSize(window.innerWidth, window.innerHeight);
+      }
+      document.body.appendChild(renderer.domElement);
+
+      // Crear un plano
+      const geometry = new THREE.PlaneGeometry(3, 3); // Anchura y altura del plano
+      const textureLoader = new THREE.TextureLoader();
+
+      function loadMaterial(n) {
+        return new THREE.MeshBasicMaterial({
+          map: textureLoader.load(`./${version}/panorama_${n}.png`),
+          color: new THREE.Color(0xffffff).multiplyScalar(0.5),
+        });
+      }
+
+      const materialFront = loadMaterial(0);
+      const front = new THREE.Mesh(geometry, materialFront);
+      scene.add(front);
+
+      const materialRight = loadMaterial(1);
+      const left = new THREE.Mesh(geometry, materialRight);
+      left.rotation.y = -Math.PI / 2;
+      left.position.x = 1.5;
+      left.position.z = 1.5;
+      scene.add(left);
+
+      const materialBack = loadMaterial(2);
+      const back = new THREE.Mesh(geometry, materialBack);
+      back.rotation.y = Math.PI;
+      back.position.z = 3;
+      scene.add(back);
+
+      const materialLeft = loadMaterial(3);
+      const right = new THREE.Mesh(geometry, materialLeft);
+      right.rotation.y = Math.PI / 2;
+      right.position.x = -1.5;
+      right.position.z = 1.5;
+      scene.add(right);
+
+      const materialUp = loadMaterial(4);
+      const top = new THREE.Mesh(geometry, materialUp);
+      top.rotation.x = Math.PI / 2;
+      top.position.z = 1.5;
+      top.position.y = 1.5;
+      scene.add(top);
+
+      const materialDown = loadMaterial(5);
+      const bottom = new THREE.Mesh(geometry, materialDown);
+      bottom.rotation.x = -Math.PI / 2;
+      bottom.position.z = 1.5;
+      bottom.position.y = -1.5;
+      scene.add(bottom);
+
+      // Configuración de la cámara
+      camera.position.z = 1.5;
+
+      // Animación del plano
+      const animate = () => {
+        requestAnimationFrame(animate);
+
+        camera.rotation.y -= velocity;
+        renderer.render(scene, camera);
+      };
+
+      animate();
+    });
+  </script>
+  <style>
+    body {
+      margin: 0;
+    }
+    canvas {
+      display: block;
+      filter: contrast(1.6);
+    }
+  </style>
+</html>
