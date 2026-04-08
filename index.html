@@ -40,7 +40,15 @@ window.addEventListener('DOMContentLoaded', () => {
     0.1,
     1000
   );
+const btn = document.getElementById("btnCambiar");
+const input = document.getElementById("versionInput");
 
+btn.addEventListener("click", () => {
+  const v = input.value.trim();
+  if (v) {
+    window.location.search = "?v=" + v;
+  }
+});
   const renderer = new THREE.WebGLRenderer();
 
   THREE.ColorManagement.legacyMode = false;
@@ -138,7 +146,7 @@ canvas {
 <!-- UI opcional -->
 <div id="panel">
   <input id="versionInput" placeholder="Ej: 26.1">
-  <button onclick="cambiarVersion()">Cargar</button>
+  <button id="btnCambiar">Cargar</button>
 </div>
 
 <script>
