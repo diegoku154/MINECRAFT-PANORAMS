@@ -1,161 +1,111 @@
 <!DOCTYPE html>
 <html lang="en">
-<script type="module">
-import * as THREE from 'https://unpkg.com/three/build/three.module.js';
+  <script type="module">
+    import * as THREE from 'https://unpkg.com/three/build/three.module.js';
+    const data = [...new URLSearchParams(location.href.split('?')[1])].reduce(
+      (a, [k, v]) => ((a[k] = v), a),
+      {}
+    );
+    const VALID_VERSIONS = '1.14,1.16,1.17,1.18,1.19,1.20,1.21,1.21.50,1.21.70,1.21.90,1.21.111,1.21.130,26.1';
+    const DEFAULT_VERSION = '26.1';
+    const version = VALID_VERSIONS.includes(data.v) ? data.v : DEFAULT_VERSION;
+    const velocity = isNaN(Number(data.r)) ? 0.0004 : Number(data.r);
+    window.addEventListener('DOMContentLoaded', () => {
+      const scene = new THREE.Scene();
+      const camera = new THREE.PerspectiveCamera(
+        75,
+        window.innerWidth / window.innerHeight,
+        0.1,
+        1000
+      );
+      const renderer = new THREE.WebGLRenderer();
+      THREE.ColorManagement.legacyMode = false
+      renderer.outputEncoding = THREE.sRGBEncoding
+      renderer.toneMapping = THREE.ACESFilmicToneMapping
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.outputEncoding = THREE.sRGBEncoding;
+      renderer.toneMapping = THREE.LinearToneMapping;
+      renderer.gammaOutput = false;
+      window.addEventListener('resize', onWindowResize, false);
 
-// Obtener parámetros correctamente
-const params = new URLSearchParams(window.location.search);
+      function onWindowResize() {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
 
-// Lista REAL de versiones (array, no string)
-const VALID_VERSIONS = [
-  "1.14","1.16","1.17","1.18","1.19",
-  "1.20","1.21","1.21.50","1.21.70",
-  "1.21.90","1.21.111","1.21.130","26.1"
-];
+        renderer.setSize(window.innerWidth, window.innerHeight);
+      }
+      document.body.appendChild(renderer.domElement);
 
-const DEFAULT_VERSION = "26.1";
+      // Crear un plano
+      const geometry = new THREE.PlaneGeometry(3, 3); // Anchura y altura del plano
+      const textureLoader = new THREE.TextureLoader();
 
-// Obtener versión desde URL
-const versionParam = params.get("v");
+      function loadMaterial(n) {
+        return new THREE.MeshBasicMaterial({
+          map: textureLoader.load(`./${version}/panorama_${n}.png`),
+          color: new THREE.Color(0xffffff).multiplyScalar(0.5),
+        });
+      }
 
-// Validar versión
-const version = VALID_VERSIONS.includes(versionParam)
-  ? versionParam
-  : DEFAULT_VERSION;
+      const materialFront = loadMaterial(0);
+      const front = new THREE.Mesh(geometry, materialFront);
+      scene.add(front);
 
-// Velocidad (opcional)
-const velocity = isNaN(Number(params.get("r")))
-  ? 0.0004
-  : Number(params.get("r"));
+      const materialRight = loadMaterial(1);
+      const left = new THREE.Mesh(geometry, materialRight);
+      left.rotation.y = -Math.PI / 2;
+      left.position.x = 1.5;
+      left.position.z = 1.5;
+      scene.add(left);
 
-console.log("Versión cargada:", version);
+      const materialBack = loadMaterial(2);
+      const back = new THREE.Mesh(geometry, materialBack);
+      back.rotation.y = Math.PI;
+      back.position.z = 3;
+      scene.add(back);
 
-window.addEventListener('DOMContentLoaded', () => {
+      const materialLeft = loadMaterial(3);
+      const right = new THREE.Mesh(geometry, materialLeft);
+      right.rotation.y = Math.PI / 2;
+      right.position.x = -1.5;
+      right.position.z = 1.5;
+      scene.add(right);
 
-  const scene = new THREE.Scene();
+      const materialUp = loadMaterial(4);
+      const top = new THREE.Mesh(geometry, materialUp);
+      top.rotation.x = Math.PI / 2;
+      top.position.z = 1.5;
+      top.position.y = 1.5;
+      scene.add(top);
 
-  const camera = new THREE.PerspectiveCamera(
-    75,
-    window.innerWidth / window.innerHeight,
-    0.1,
-    1000
-  );
-const btn = document.getElementById("btnCambiar");
-const input = document.getElementById("versionInput");
+      const materialDown = loadMaterial(5);
+      const bottom = new THREE.Mesh(geometry, materialDown);
+      bottom.rotation.x = -Math.PI / 2;
+      bottom.position.z = 1.5;
+      bottom.position.y = -1.5;
+      scene.add(bottom);
 
-btn.addEventListener("click", () => {
-  const v = input.value.trim();
-  if (v) {
-    window.location.search = "?v=" + v;
-  }
-});
-  const renderer = new THREE.WebGLRenderer();
+      // Configuración de la cámara
+      camera.position.z = 1.5;
 
-  THREE.ColorManagement.legacyMode = false;
-  renderer.outputEncoding = THREE.sRGBEncoding;
-  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      // Animación del plano
+      const animate = () => {
+        requestAnimationFrame(animate);
 
-  renderer.setSize(window.innerWidth, window.innerHeight);
-  document.body.appendChild(renderer.domElement);
+        camera.rotation.y -= velocity;
+        renderer.render(scene, camera);
+      };
 
-  // Responsive
-  window.addEventListener('resize', () => {
-    camera.aspect = window.innerWidth / window.innerHeight;
-    camera.updateProjectionMatrix();
-    renderer.setSize(window.innerWidth, window.innerHeight);
-  });
-
-  // Geometría
-  const geometry = new THREE.PlaneGeometry(3, 3);
-  const textureLoader = new THREE.TextureLoader();
-
-  // Cargar texturas dinámicamente según versión
-  function loadMaterial(n) {
-    return new THREE.MeshBasicMaterial({
-      map: textureLoader.load(`./${version}/panorama_${n}.png`),
-      color: new THREE.Color(0xffffff).multiplyScalar(0.5),
+      animate();
     });
-  }
-
-  // Crear cubo panorama
-  const faces = [];
-
-  faces.push(new THREE.Mesh(geometry, loadMaterial(0))); // front
-
-  const left = new THREE.Mesh(geometry, loadMaterial(1));
-  left.rotation.y = -Math.PI / 2;
-  left.position.set(1.5, 0, 1.5);
-  faces.push(left);
-
-  const back = new THREE.Mesh(geometry, loadMaterial(2));
-  back.rotation.y = Math.PI;
-  back.position.z = 3;
-  faces.push(back);
-
-  const right = new THREE.Mesh(geometry, loadMaterial(3));
-  right.rotation.y = Math.PI / 2;
-  right.position.set(-1.5, 0, 1.5);
-  faces.push(right);
-
-  const top = new THREE.Mesh(geometry, loadMaterial(4));
-  top.rotation.x = Math.PI / 2;
-  top.position.set(0, 1.5, 1.5);
-  faces.push(top);
-
-  const bottom = new THREE.Mesh(geometry, loadMaterial(5));
-  bottom.rotation.x = -Math.PI / 2;
-  bottom.position.set(0, -1.5, 1.5);
-  faces.push(bottom);
-
-  faces.forEach(f => scene.add(f));
-
-  // Cámara
-  camera.position.z = 1.5;
-
-  // Animación
-  function animate() {
-    requestAnimationFrame(animate);
-    camera.rotation.y -= velocity;
-    renderer.render(scene, camera);
-  }
-
-  animate();
-});
-</script>
-
-<style>
-body {
-  margin: 0;
-}
-canvas {
-  display: block;
-  filter: contrast(1.6);
-}
-
-/* Opcional: UI para cambiar versión */
-#panel {
-  position: fixed;
-  top: 10px;
-  left: 10px;
-  background: rgba(0,0,0,0.5);
-  padding: 10px;
-  border-radius: 10px;
-}
-</style>
-
-<!-- UI opcional -->
-<div id="panel">
-  <input id="versionInput" placeholder="Ej: 26.1">
-  <button id="btnCambiar">Cargar</button>
-</div>
-
-<script>
-function cambiarVersion() {
-  const v = document.getElementById("versionInput").value;
-  if (v) {
-    window.location.search = "?v=" + v;
-  }
-}
-</script>
-
+  </script>
+  <style>
+    body {
+      margin: 0;
+    }
+    canvas {
+      display: block;
+      filter: contrast(1.6);
+    }
+  </style>
 </html>
