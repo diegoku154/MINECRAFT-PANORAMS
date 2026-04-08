@@ -1,8 +1,12 @@
+<!DOCTYPE html>
+<html lang="en">
 <script type="module">
 import * as THREE from 'https://unpkg.com/three/build/three.module.js';
 
+// Obtener parámetros correctamente
 const params = new URLSearchParams(window.location.search);
 
+// Lista REAL de versiones (array, no string)
 const VALID_VERSIONS = [
   "1.14","1.16","1.17","1.18","1.19",
   "1.20","1.21","1.21.50","1.21.70",
@@ -11,113 +15,147 @@ const VALID_VERSIONS = [
 
 const DEFAULT_VERSION = "26.1";
 
+// Obtener versión desde URL
 const versionParam = params.get("v");
 
+// Validar versión
 const version = VALID_VERSIONS.includes(versionParam)
   ? versionParam
   : DEFAULT_VERSION;
 
+// Velocidad (opcional)
 const velocity = isNaN(Number(params.get("r")))
   ? 0.0004
   : Number(params.get("r"));
 
 console.log("Versión cargada:", version);
 
-// Scene
-const scene = new THREE.Scene();
+window.addEventListener('DOMContentLoaded', () => {
 
-const camera = new THREE.PerspectiveCamera(
-  75,
-  window.innerWidth / window.innerHeight,
-  0.1,
-  1000
-);
+  const scene = new THREE.Scene();
 
-const renderer = new THREE.WebGLRenderer({ antialias: true });
-renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.outputEncoding = THREE.sRGBEncoding;
+  const camera = new THREE.PerspectiveCamera(
+    75,
+    window.innerWidth / window.innerHeight,
+    0.1,
+    1000
+  );
+const btn = document.getElementById("btnCambiar");
+const input = document.getElementById("versionInput");
 
-document.body.appendChild(renderer.domElement);
-
-// Responsive
-window.addEventListener('resize', () => {
-  camera.aspect = window.innerWidth / window.innerHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize(window.innerWidth, window.innerHeight);
+btn.addEventListener("click", () => {
+  const v = input.value.trim();
+  if (v) {
+    window.location.search = "?v=" + v;
+  }
 });
+  const renderer = new THREE.WebGLRenderer();
 
-// Loader
-const loader = new THREE.TextureLoader();
+  THREE.ColorManagement.legacyMode = false;
+  renderer.outputEncoding = THREE.sRGBEncoding;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
 
-function loadMaterial(path) {
-  const texture = loader.load(path);
-  texture.encoding = THREE.sRGBEncoding;
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  document.body.appendChild(renderer.domElement);
 
-  return new THREE.MeshBasicMaterial({
-    map: texture,
-    side: THREE.BackSide // 🔥 ver desde dentro
+  // Responsive
+  window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
   });
-}
 
-// Crear cubo MANUAL (compatibilidad total)
-function createPanorama() {
+  // Geometría
+  const geometry = new THREE.PlaneGeometry(3, 3);
+  const textureLoader = new THREE.TextureLoader();
 
-  const size = 3;
-  const half = size / 2;
+  // Cargar texturas dinámicamente según versión
+  function loadMaterial(n) {
+    return new THREE.MeshBasicMaterial({
+      map: textureLoader.load(`./${version}/panorama_${n}.png`),
+      color: new THREE.Color(0xffffff).multiplyScalar(0.5),
+    });
+  }
 
-  const geometry = new THREE.PlaneGeometry(size, size);
-
+  // Crear cubo panorama
   const faces = [];
 
-  // FRONT
-  const front = new THREE.Mesh(geometry, loadMaterial(`./${version}/panorama_0.png`));
-  front.position.z = -half;
-  faces.push(front);
+  faces.push(new THREE.Mesh(geometry, loadMaterial(0))); // front
 
-  // BACK
-  const back = new THREE.Mesh(geometry, loadMaterial(`./${version}/panorama_2.png`));
-  back.rotation.y = Math.PI;
-  back.position.z = half;
-  faces.push(back);
-
-  // LEFT
-  const left = new THREE.Mesh(geometry, loadMaterial(`./${version}/panorama_1.png`));
-  left.rotation.y = Math.PI / 2;
-  left.position.x = -half;
+  const left = new THREE.Mesh(geometry, loadMaterial(1));
+  left.rotation.y = -Math.PI / 2;
+  left.position.set(1.5, 0, 1.5);
   faces.push(left);
 
-  // RIGHT
-  const right = new THREE.Mesh(geometry, loadMaterial(`./${version}/panorama_3.png`));
-  right.rotation.y = -Math.PI / 2;
-  right.position.x = half;
+  const back = new THREE.Mesh(geometry, loadMaterial(2));
+  back.rotation.y = Math.PI;
+  back.position.z = 3;
+  faces.push(back);
+
+  const right = new THREE.Mesh(geometry, loadMaterial(3));
+  right.rotation.y = Math.PI / 2;
+  right.position.set(-1.5, 0, 1.5);
   faces.push(right);
 
-  // TOP
-  const top = new THREE.Mesh(geometry, loadMaterial(`./${version}/panorama_4.png`));
-  top.rotation.x = -Math.PI / 2;
-  top.position.y = half;
+  const top = new THREE.Mesh(geometry, loadMaterial(4));
+  top.rotation.x = Math.PI / 2;
+  top.position.set(0, 1.5, 1.5);
   faces.push(top);
 
-  // BOTTOM
-  const bottom = new THREE.Mesh(geometry, loadMaterial(`./${version}/panorama_5.png`));
-  bottom.rotation.x = Math.PI / 2;
-  bottom.position.y = -half;
+  const bottom = new THREE.Mesh(geometry, loadMaterial(5));
+  bottom.rotation.x = -Math.PI / 2;
+  bottom.position.set(0, -1.5, 1.5);
   faces.push(bottom);
 
   faces.forEach(f => scene.add(f));
-}
 
-createPanorama();
+  // Cámara
+  camera.position.z = 1.5;
 
-// Cámara
-camera.position.set(0, 0, 0.1);
+  // Animación
+  function animate() {
+    requestAnimationFrame(animate);
+    camera.rotation.y -= velocity;
+    renderer.render(scene, camera);
+  }
 
-// Animación
-function animate() {
-  requestAnimationFrame(animate);
-  camera.rotation.y -= velocity;
-  renderer.render(scene, camera);
-}
-
-animate();
+  animate();
+});
 </script>
+
+<style>
+body {
+  margin: 0;
+}
+canvas {
+  display: block;
+  filter: contrast(1.6);
+}
+
+/* Opcional: UI para cambiar versión */
+#panel {
+  position: fixed;
+  top: 10px;
+  left: 10px;
+  background: rgba(0,0,0,0.5);
+  padding: 10px;
+  border-radius: 10px;
+}
+</style>
+
+<!-- UI opcional -->
+<div id="panel">
+  <input id="versionInput" placeholder="Ej: 26.1">
+  <button id="btnCambiar">Cargar</button>
+</div>
+
+<script>
+function cambiarVersion() {
+  const v = document.getElementById("versionInput").value;
+  if (v) {
+    window.location.search = "?v=" + v;
+  }
+}
+</script>
+
+</html>
