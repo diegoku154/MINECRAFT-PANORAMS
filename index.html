@@ -1,36 +1,6 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<title>Panorama Viewer</title>
-<style>
-body { margin: 0; }
-canvas {
-  display: block;
-  filter: contrast(1.6);
-}
-#panel {
-  position: fixed;
-  top: 10px;
-  left: 10px;
-  background: rgba(0,0,0,0.5);
-  padding: 10px;
-  border-radius: 10px;
-}
-</style>
-</head>
-
-<body>
-
-<div id="panel">
-  <input id="versionInput" placeholder="Ej: 26.1">
-  <button onclick="cambiarVersion()">Cargar</button>
-</div>
-
 <script type="module">
 import * as THREE from 'https://unpkg.com/three/build/three.module.js';
 
-// Parámetros URL
 const params = new URLSearchParams(window.location.search);
 
 const VALID_VERSIONS = [
@@ -64,7 +34,6 @@ const camera = new THREE.PerspectiveCamera(
 );
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
-
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.outputEncoding = THREE.sRGBEncoding;
 
@@ -77,57 +46,67 @@ window.addEventListener('resize', () => {
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
 
-// Loader con control
-const textureLoader = new THREE.TextureLoader();
+// Loader
+const loader = new THREE.TextureLoader();
 
-// PROMESA para cargar texturas correctamente
-function loadTexture(path) {
-  return new Promise((resolve, reject) => {
-    textureLoader.load(
-      path,
-      (texture) => {
-        texture.encoding = THREE.sRGBEncoding;
-        resolve(texture);
-      },
-      undefined,
-      (err) => reject(err)
-    );
+function loadMaterial(path) {
+  const texture = loader.load(path);
+  texture.encoding = THREE.sRGBEncoding;
+
+  return new THREE.MeshBasicMaterial({
+    map: texture,
+    side: THREE.BackSide // 🔥 ver desde dentro
   });
 }
 
-// Crear cubo panorama correctamente
-async function createPanorama() {
+// Crear cubo MANUAL (compatibilidad total)
+function createPanorama() {
 
-  const paths = [
-    `./${version}/panorama_0.png`,
-    `./${version}/panorama_1.png`,
-    `./${version}/panorama_2.png`,
-    `./${version}/panorama_3.png`,
-    `./${version}/panorama_4.png`,
-    `./${version}/panorama_5.png`
-  ];
+  const size = 3;
+  const half = size / 2;
 
-  try {
-    const textures = await Promise.all(paths.map(p => loadTexture(p)));
+  const geometry = new THREE.PlaneGeometry(size, size);
 
-    const materials = textures.map(tex =>
-      new THREE.MeshBasicMaterial({
-        map: tex,
-        side: THREE.BackSide // 🔥 MUY IMPORTANTE
-      })
-    );
+  const faces = [];
 
-    const geometry = new THREE.BoxGeometry(3, 3, 3);
-    const cube = new THREE.Mesh(geometry, materials);
+  // FRONT
+  const front = new THREE.Mesh(geometry, loadMaterial(`./${version}/panorama_0.png`));
+  front.position.z = -half;
+  faces.push(front);
 
-    scene.add(cube);
+  // BACK
+  const back = new THREE.Mesh(geometry, loadMaterial(`./${version}/panorama_2.png`));
+  back.rotation.y = Math.PI;
+  back.position.z = half;
+  faces.push(back);
 
-  } catch (error) {
-    console.error("Error cargando panoramas:", error);
-  }
+  // LEFT
+  const left = new THREE.Mesh(geometry, loadMaterial(`./${version}/panorama_1.png`));
+  left.rotation.y = Math.PI / 2;
+  left.position.x = -half;
+  faces.push(left);
+
+  // RIGHT
+  const right = new THREE.Mesh(geometry, loadMaterial(`./${version}/panorama_3.png`));
+  right.rotation.y = -Math.PI / 2;
+  right.position.x = half;
+  faces.push(right);
+
+  // TOP
+  const top = new THREE.Mesh(geometry, loadMaterial(`./${version}/panorama_4.png`));
+  top.rotation.x = -Math.PI / 2;
+  top.position.y = half;
+  faces.push(top);
+
+  // BOTTOM
+  const bottom = new THREE.Mesh(geometry, loadMaterial(`./${version}/panorama_5.png`));
+  bottom.rotation.x = Math.PI / 2;
+  bottom.position.y = -half;
+  faces.push(bottom);
+
+  faces.forEach(f => scene.add(f));
 }
 
-// Crear panorama
 createPanorama();
 
 // Cámara
@@ -142,15 +121,3 @@ function animate() {
 
 animate();
 </script>
-
-<script>
-function cambiarVersion() {
-  const v = document.getElementById("versionInput").value;
-  if (v) {
-    window.location.search = "?v=" + v;
-  }
-}
-</script>
-
-</body>
-</html>
