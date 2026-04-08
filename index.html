@@ -1,130 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
-<script type="module">
-import * as THREE from 'https://unpkg.com/three/build/three.module.js';
-
-// Obtener parámetros correctamente
-const params = new URLSearchParams(window.location.search);
-
-// Lista REAL de versiones (array, no string)
-const VALID_VERSIONS = [
-  "1.14","1.16","1.17","1.18","1.19",
-  "1.20","1.21","1.21.50","1.21.70",
-  "1.21.90","1.21.111","1.21.130","26.1"
-];
-
-const DEFAULT_VERSION = "26.1";
-
-// Obtener versión desde URL
-const versionParam = params.get("v");
-
-// Validar versión
-const version = VALID_VERSIONS.includes(versionParam)
-  ? versionParam
-  : DEFAULT_VERSION;
-
-// Velocidad (opcional)
-const velocity = isNaN(Number(params.get("r")))
-  ? 0.0004
-  : Number(params.get("r"));
-
-console.log("Versión cargada:", version);
-
-window.addEventListener('DOMContentLoaded', () => {
-
-  const scene = new THREE.Scene();
-
-  const camera = new THREE.PerspectiveCamera(
-    75,
-    window.innerWidth / window.innerHeight,
-    0.1,
-    1000
-  );
-
-  const renderer = new THREE.WebGLRenderer();
-
-  THREE.ColorManagement.legacyMode = false;
-  renderer.outputEncoding = THREE.sRGBEncoding;
-  renderer.toneMapping = THREE.ACESFilmicToneMapping;
-
-  renderer.setSize(window.innerWidth, window.innerHeight);
-  document.body.appendChild(renderer.domElement);
-
-  // Responsive
-  window.addEventListener('resize', () => {
-    camera.aspect = window.innerWidth / window.innerHeight;
-    camera.updateProjectionMatrix();
-    renderer.setSize(window.innerWidth, window.innerHeight);
-  });
-
-  // Geometría
-  const geometry = new THREE.PlaneGeometry(3, 3);
-  const textureLoader = new THREE.TextureLoader();
-
-  // Cargar texturas dinámicamente según versión
-  function loadMaterial(n) {
-    return new THREE.MeshBasicMaterial({
-      map: textureLoader.load(`./${version}/panorama_${n}.png`),
-      color: new THREE.Color(0xffffff).multiplyScalar(0.5),
-    });
-  }
-
-  // Crear cubo panorama
-  const faces = [];
-
-  faces.push(new THREE.Mesh(geometry, loadMaterial(0))); // front
-
-  const left = new THREE.Mesh(geometry, loadMaterial(1));
-  left.rotation.y = -Math.PI / 2;
-  left.position.set(1.5, 0, 1.5);
-  faces.push(left);
-
-  const back = new THREE.Mesh(geometry, loadMaterial(2));
-  back.rotation.y = Math.PI;
-  back.position.z = 3;
-  faces.push(back);
-
-  const right = new THREE.Mesh(geometry, loadMaterial(3));
-  right.rotation.y = Math.PI / 2;
-  right.position.set(-1.5, 0, 1.5);
-  faces.push(right);
-
-  const top = new THREE.Mesh(geometry, loadMaterial(4));
-  top.rotation.x = Math.PI / 2;
-  top.position.set(0, 1.5, 1.5);
-  faces.push(top);
-
-  const bottom = new THREE.Mesh(geometry, loadMaterial(5));
-  bottom.rotation.x = -Math.PI / 2;
-  bottom.position.set(0, -1.5, 1.5);
-  faces.push(bottom);
-
-  faces.forEach(f => scene.add(f));
-
-  // Cámara
-  camera.position.z = 1.5;
-
-  // Animación
-  function animate() {
-    requestAnimationFrame(animate);
-    camera.rotation.y -= velocity;
-    renderer.render(scene, camera);
-  }
-
-  animate();
-});
-</script>
-
+<head>
+<meta charset="UTF-8">
+<title>Panorama Viewer</title>
 <style>
-body {
-  margin: 0;
-}
+body { margin: 0; }
 canvas {
   display: block;
   filter: contrast(1.6);
 }
-
-/* Opcional: UI para cambiar versión */
 #panel {
   position: fixed;
   top: 10px;
@@ -134,12 +18,130 @@ canvas {
   border-radius: 10px;
 }
 </style>
+</head>
 
-<!-- UI opcional -->
+<body>
+
 <div id="panel">
   <input id="versionInput" placeholder="Ej: 26.1">
   <button onclick="cambiarVersion()">Cargar</button>
 </div>
+
+<script type="module">
+import * as THREE from 'https://unpkg.com/three/build/three.module.js';
+
+// Parámetros URL
+const params = new URLSearchParams(window.location.search);
+
+const VALID_VERSIONS = [
+  "1.14","1.16","1.17","1.18","1.19",
+  "1.20","1.21","1.21.50","1.21.70",
+  "1.21.90","1.21.111","1.21.130","26.1"
+];
+
+const DEFAULT_VERSION = "26.1";
+
+const versionParam = params.get("v");
+
+const version = VALID_VERSIONS.includes(versionParam)
+  ? versionParam
+  : DEFAULT_VERSION;
+
+const velocity = isNaN(Number(params.get("r")))
+  ? 0.0004
+  : Number(params.get("r"));
+
+console.log("Versión cargada:", version);
+
+// Scene
+const scene = new THREE.Scene();
+
+const camera = new THREE.PerspectiveCamera(
+  75,
+  window.innerWidth / window.innerHeight,
+  0.1,
+  1000
+);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.outputEncoding = THREE.sRGBEncoding;
+
+document.body.appendChild(renderer.domElement);
+
+// Responsive
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+// Loader con control
+const textureLoader = new THREE.TextureLoader();
+
+// PROMESA para cargar texturas correctamente
+function loadTexture(path) {
+  return new Promise((resolve, reject) => {
+    textureLoader.load(
+      path,
+      (texture) => {
+        texture.encoding = THREE.sRGBEncoding;
+        resolve(texture);
+      },
+      undefined,
+      (err) => reject(err)
+    );
+  });
+}
+
+// Crear cubo panorama correctamente
+async function createPanorama() {
+
+  const paths = [
+    `./${version}/panorama_0.png`,
+    `./${version}/panorama_1.png`,
+    `./${version}/panorama_2.png`,
+    `./${version}/panorama_3.png`,
+    `./${version}/panorama_4.png`,
+    `./${version}/panorama_5.png`
+  ];
+
+  try {
+    const textures = await Promise.all(paths.map(p => loadTexture(p)));
+
+    const materials = textures.map(tex =>
+      new THREE.MeshBasicMaterial({
+        map: tex,
+        side: THREE.BackSide // 🔥 MUY IMPORTANTE
+      })
+    );
+
+    const geometry = new THREE.BoxGeometry(3, 3, 3);
+    const cube = new THREE.Mesh(geometry, materials);
+
+    scene.add(cube);
+
+  } catch (error) {
+    console.error("Error cargando panoramas:", error);
+  }
+}
+
+// Crear panorama
+createPanorama();
+
+// Cámara
+camera.position.set(0, 0, 0.1);
+
+// Animación
+function animate() {
+  requestAnimationFrame(animate);
+  camera.rotation.y -= velocity;
+  renderer.render(scene, camera);
+}
+
+animate();
+</script>
 
 <script>
 function cambiarVersion() {
@@ -150,4 +152,5 @@ function cambiarVersion() {
 }
 </script>
 
+</body>
 </html>
